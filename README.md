@@ -1,23 +1,69 @@
-# Astro Image Classification App
+# 🌌 Astro Image Classification App
 
-A **deep learning web app** for classifying astronomical images using an **ensemble of CNN models** (VGG19 + DenseNet201) with optional attention mechanisms. Built with **TensorFlow/Keras** and **Streamlit**.
+An end-to-end **deep learning project** for classifying astronomical images using **transfer learning, attention mechanisms, and ensemble learning**.  
+The project follows a clear pipeline from **experimentation and training (Jupyter Notebook)** to **deployment (Streamlit + Docker)**.
+
+Built with **TensorFlow/Keras** and **Streamlit**.
 
 ---
 
 ## 🚀 Features
 
-- Upload any astronomical image and get a **predicted class**.
-- Ensemble learning for **improved accuracy**.
-- Uses **pretrained CNN models** with fine-tuning on your dataset.
+- Upload an astronomical image and receive a **predicted class**.
+- **Ensemble model** (VGG19 + DenseNet201) for improved robustness.
+- Transfer learning with **pretrained CNNs**.
+- Advanced architectures including **CBAM attention mechanisms**.
 - Displays **prediction probabilities** for all classes.
-- Compatible with **CBAM attention mechanisms** for more robust feature learning.
-- Easy to extend for new models or datasets.
+- Modular and extensible project structure.
+- Dockerized for easy deployment.
+
+---
+
+## 🧠 Project Pipeline
+
+This project follows a complete and structured machine learning workflow:
+
+### 1️⃣ Experimentation & Training (Notebook)
+
+All experiments, training, and evaluations are performed in the notebook:
+
+The notebook includes:
+- Dataset loading and preprocessing
+- Data augmentation
+- Transfer learning (DenseNet, VGG, ResNet)
+- Fine-tuning strategies
+- Attention mechanisms (Spatial Attention, CBAM)
+- Ensemble learning
+- Model evaluation (accuracy, F1-score, ROC-AUC, confusion matrix)
+- Saving trained models (`.keras`)
+
+---
+
+### 2️⃣ Model Selection
+
+The best-performing model (ensemble of VGG19 + DenseNet201) is selected for deployment.
+
+⚠️ **Trained model files are NOT included in this repository** due to GitHub’s file size limitations.
+
+---
+
+### 3️⃣ Inference & Deployment
+
+The trained model is used in a **Streamlit web application** (`app.py`) to:
+- Load the trained model
+- Preprocess user-uploaded images
+- Perform inference
+- Display predictions and probabilities
+
+The application can be run locally or deployed using **Docker**.
 
 ---
 
 ## 📦 Requirements
 
-Python 3.10+ recommended.
+Python **3.10+** recommended.
+
+Install dependencies with:
 
 ```bash
 pip install -r requirements.txt
@@ -36,19 +82,22 @@ pip install -r requirements.txt
 
 ## 🛠️ Setup
 
-- Clone the repository:
+- 1️⃣ Clone the repository:
 ```bash
 git clone <your-repo-url>
 cd astro_app
 ```
-- Place your trained model checkpoints in:
-```bash
-astro_app/models/
-```
-Ensemble model: ensemble_model.keras
-(Optional) Individual models: best_model_vgg.keras, best_densenet.keras
-- Ensure your class names are listed in labels.py or in the same order as your training dataset.
+- 2️⃣ Download the trained model
 
+Download the trained ensemble model separately and place it in:
+```bash
+astro_app/models/ensemble_model.keras
+```
+The models/ directory is ignored by Git and should be created locally.
+
+- 3️⃣ Class labels
+
+Ensure the class names in utils/labels.py are in the same order as used during training.
 ## 💻 Run the Streamlit App
 ```bash
 streamlit run app.py
@@ -63,17 +112,22 @@ streamlit run app.py
 ```bash
 astro_app/
 │
-├── app.py
+├── app.py                     # Streamlit inference app
 ├── requirements.txt
 ├── Dockerfile
 ├── .dockerignore
+├── .gitignore
+├── README.md
 │
-├── models/
+├── notebooks/
+│   └── Astro_CNN_project.ipynb # Training & experimentation notebook
+│
+├── models/                    # (ignored by Git)
 │   └── ensemble_model.keras
 │
-└── utils/
-    ├── preprocessing.py
-    └── labels.py
+├── utils/
+│   ├── preprocessing.py       # Image preprocessing utilities
+│   └── labels.py              # Class names
 ```
 ## 📷 Image Upload Example
 
@@ -102,10 +156,23 @@ def vgg_preprocess(x):
 
 ## 📈 Model Performance
 
-- Ensemble of VGG19 + DenseNet201 improves robustness.
-- Optional attention mechanisms (CBAM) enhance focus on key image regions.
-- Metrics include: Accuracy, F1-score, ROC-AUC, Confusion Matrix.
+- Ensemble learning improves generalization and robustness.
+- Attention mechanisms help the model focus on relevant regions.
+- Evaluation metrics include:
+    - Accuracy
+    - Precision / Recall / F1-score
+    - ROC-AUC (multiclass)
+    - Confusion Matrix
+
+## 🐳 Docker Support
+
+- The application can be containerized and deployed using Docker.
+```bash
+docker build -t astro-classifier .
+docker run -p 8501:8501 astro-classifier
+```
 
 ##  📃 License
-This project is for academic or personal use.
-Please check individual OCR engine licenses for their specific terms.
+This project is intended for academic and personal use.
+
+Please check individual dataset and pretrained model licenses (ImageNet, VGG, DenseNet, ResNet) for their respective terms.
