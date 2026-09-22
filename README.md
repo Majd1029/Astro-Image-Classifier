@@ -176,3 +176,32 @@ docker run -p 8501:8501 astro-classifier
 This project is intended for academic and personal use.
 
 Please check individual dataset and pretrained model licenses (ImageNet, VGG, DenseNet, ResNet) for their respective terms.
+
+## Live demo
+
+- **App:** deployed from `app.py` on Streamlit Community Cloud
+- **Weights:** https://huggingface.co/MA29/astro-image-classifier
+
+## Results
+
+Ensemble (VGG19 + DenseNet201, averaged) on the held-out test split
+(446 images, `validation_split=0.3`, `seed=42`):
+
+| Model | Test accuracy |
+|---|---|
+| DenseNet201 branch | 0.9888 |
+| VGG19 branch | 0.9888 |
+| **Ensemble (deployed)** | **0.9910** |
+
+Macro F1 0.990. The four errors are three venus/mars confusions and one
+black_hole predicted as galaxy.
+
+## Input format
+
+The saved model preprocesses internally — the densenet branch via a
+`Lambda(preprocess_input)`, the vgg branch via a channel-swap and
+mean-subtraction chain. **Feed raw 0-255 RGB.** Applying `preprocess_input`
+beforehand applies it twice and drops accuracy to 71.8% on a 110-image check.
+
+`custom_objects={"preprocess_input": ...}` is required at load time, because the
+densenet Lambda is serialised under that name.
