@@ -1,5 +1,7 @@
 # 🌌 Astro Image Classification App
 
+**[▶ Try the live demo](https://majd1029-astro-image-classifier-app-x3ke9w.streamlit.app)** — runs on a free CPU tier, so the first prediction takes ~30s while the 267 MB model downloads. After that it is sub-second.
+
 An end-to-end **deep learning project** for classifying astronomical images using **transfer learning, attention mechanisms, and ensemble learning**.  
 The project follows a clear pipeline from **experimentation and training (Jupyter Notebook)** to **deployment (Streamlit + Docker)**.
 
