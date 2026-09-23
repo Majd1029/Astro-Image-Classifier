@@ -1,5 +1,18 @@
-streamlit==1.64.0
+# REQUIRES PYTHON 3.11
+# Set it in Streamlit Cloud: app -> Settings -> General -> Python version,
+# or under "Advanced settings" when first deploying.
+#
+# On Python 3.14 the only tensorflow-cpu build in existence is 2.22.0rc0, a
+# release candidate; every stable release targets <=3.13, so the resolver fails
+# with "no wheels with a matching Python ABI tag". Do not fix that by loosening
+# this pin - fix the Python version.
+#
+# tensorflow-cpu is pinned exactly because the saved ensemble was verified to
+# load and score 0.9910 under 2.18.0 / Keras 3.15.1. A newer TF ships a newer
+# Keras, and Keras deserialisation is version-sensitive.
+
+streamlit>=1.64.0
 tensorflow-cpu==2.18.0
-numpy==2.0.2
-pillow==11.0.0
-huggingface-hub==0.27.0
+numpy>=1.26,<2.2
+pillow>=11.0.0
+huggingface-hub>=0.27.0
