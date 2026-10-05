@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Astro Image Classifier — Majd Aguir</title>
+  <meta name="description" content="Classify planets, galaxies and black holes with a VGG19 + DenseNet201 ensemble (99.1% test accuracy), running on a free Hugging Face Space.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    // The Hugging Face Space that runs app.py, as "owner/name".
+    window.SPACE_ID = 'MA29/astro-image-classifier';
+  </script>
+  <style>
+    :root {
+      --bg: #f5f5f7; --card: #ffffff; --card-2: #f2f2f4; --text: #1d1d1f; --muted: #6e6e73;
+      --border: rgba(0, 0, 0, 0.07); --shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.05);
+      --accent: #4f46e5; --accent-2: #0ea5e9; --bar: #e4e4ea;
+      --ok: #16a34a; --warn: #d97706; --bad: #dc2626;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0b0b0c; --card: #161618; --card-2: #1f1f22; --text: #f5f5f7; --muted: #a1a1a6;
+        --border: rgba(255,255,255,.08); --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+        --accent: #818cf8; --accent-2: #38bdf8; --bar: #2a2a2e;
+        --ok: #4ade80; --warn: #fbbf24; --bad: #f87171;
+      }
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+    a { color: inherit; }
+    [hidden] { display: none !important; }
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 40px 24px 56px; }
+
+    header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 28px; }
+    h1 { font-size: clamp(28px, 4vw, 38px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; }
+    h1 span { background: linear-gradient(120deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .sub { color: var(--muted); margin-top: 8px; font-size: 16px; max-width: 600px; }
+    .status { display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 999px; background: var(--card); border: 1px solid var(--border); font-size: 14px; font-weight: 500; white-space: nowrap; box-shadow: var(--shadow); }
+    .status i { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+    .status[data-state="ready"] i { background: var(--ok); }
+    .status[data-state="waking"] i, .status[data-state="loading"] i, .status[data-state="busy"] i { background: var(--warn); animation: pulse 1.2s infinite; }
+    .status[data-state="error"] i { background: var(--bad); }
+    @keyframes pulse { 50% { opacity: .35; } }
+
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 28px; box-shadow: var(--shadow); padding: 28px; min-width: 0; }
+    .label { display: block; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 10px; }
+
+    .drop { position: relative; display: grid; place-items: center; aspect-ratio: 4 / 3; width: 100%; border-radius: 20px; border: 2px dashed color-mix(in srgb, var(--muted) 40%, transparent); background: var(--card-2); cursor: pointer; overflow: hidden; text-align: center; color: var(--muted); transition: border-color .2s, background .2s; }
+    .drop:hover, .drop:focus-visible, .drop.over { border-color: var(--accent); outline: none; }
+    .drop.over { background: color-mix(in srgb, var(--accent) 8%, var(--card-2)); }
+    .drop.has-image { border-style: solid; border-color: var(--border); background: #000; }
+    .drop img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+    .drop .hint b { display: block; color: var(--text); font-size: 17px; margin: 10px 0 4px; }
+    .drop .hint svg { color: var(--accent); }
+    .drop input { display: none; }
+
+    .examples { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin: 12px 0 22px; }
+    .ex { position: relative; aspect-ratio: 1; border-radius: 12px; overflow: hidden; border: 2px solid transparent; padding: 0; cursor: pointer; background: #000; }
+    .ex img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .ex:hover, .ex:focus-visible { border-color: var(--accent); outline: none; }
+    .ex[aria-pressed="true"] { border-color: var(--accent); }
+
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 9px; height: 52px; padding: 0 26px; border-radius: 999px; border: 1px solid transparent; font: 600 16px 'Inter', sans-serif; cursor: pointer; transition: transform .15s, opacity .2s; text-decoration: none; }
+    .btn:hover:not(:disabled) { transform: translateY(-1px); }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-primary { width: 100%; background: linear-gradient(120deg, var(--accent), var(--accent-2)); color: #fff; box-shadow: 0 8px 22px rgba(79, 70, 229, .3); }
+
+    .result { display: flex; flex-direction: column; min-height: 100%; }
+    .empty { flex: 1; display: grid; place-items: center; text-align: center; color: var(--muted); padding: 40px 12px; min-height: 320px; border-radius: 20px; background: radial-gradient(circle at 25% 20%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 55%), radial-gradient(circle at 80% 85%, color-mix(in srgb, var(--accent-2) 14%, transparent), transparent 55%), var(--card-2); }
+    .empty b { display: block; color: var(--text); font-size: 18px; margin-bottom: 6px; }
+    .spinner { width: 44px; height: 44px; border-radius: 50%; border: 4px solid color-mix(in srgb, var(--accent) 25%, transparent); border-top-color: var(--accent); animation: spin 1s linear infinite; margin: 0 auto 14px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .top { padding: 22px; border-radius: 20px; background: linear-gradient(120deg, color-mix(in srgb, var(--accent) 14%, transparent), color-mix(in srgb, var(--accent-2) 12%, transparent)); margin-bottom: 22px; }
+    .top .name { font-size: clamp(28px, 4vw, 36px); font-weight: 800; letter-spacing: -0.02em; text-transform: capitalize; line-height: 1.15; }
+    .top .conf { color: var(--muted); font-size: 15px; margin-top: 4px; }
+    .top .conf b { color: var(--text); }
+    .bars { list-style: none; display: grid; gap: 12px; }
+    .bars li { display: grid; grid-template-columns: 96px 1fr 58px; align-items: center; gap: 12px; font-size: 14px; }
+    .bars .n { text-transform: capitalize; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bars .track { display: block; height: 10px; border-radius: 999px; background: var(--bar); overflow: hidden; }
+    .bars .fill { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--accent), var(--accent-2)); width: 0; transition: width .6s ease; }
+    .bars .p { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+    .bars li:first-child .n, .bars li:first-child .p { color: var(--text); font-weight: 700; }
+    .toggle { margin-top: 16px; align-self: flex-start; background: none; border: 0; color: var(--accent); font: 600 14px 'Inter', sans-serif; cursor: pointer; padding: 0; }
+    .meta { margin-top: 16px; font-size: 13px; color: var(--muted); }
+
+    .msg { margin-top: 14px; padding: 12px 14px; border-radius: 14px; font-size: 14px; display: none; }
+    .msg.show { display: block; }
+    .msg.error { background: color-mix(in srgb, var(--bad) 12%, transparent); color: var(--bad); }
+    .msg.info { background: color-mix(in srgb, var(--warn) 12%, transparent); color: var(--text); }
+
+    .note { margin-top: 24px; font-size: 14px; color: var(--muted); max-width: 820px; }
+    footer { margin-top: 36px; padding-top: 22px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 14px; color: var(--muted); }
+    footer a { text-decoration: none; font-weight: 500; }
+    footer a:hover { color: var(--text); }
+
+    @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+    @media (max-width: 480px) {
+      .wrap { padding: 24px 16px 40px; }
+      .card { padding: 20px; border-radius: 22px; }
+      .examples { grid-template-columns: repeat(3, 1fr); }
+      .bars li { grid-template-columns: 84px 1fr 52px; gap: 10px; }
+    }
+    @media (prefers-reduced-motion: reduce) { .spinner, .status i { animation: none; } .bars .fill { transition: none; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Astro Image <span>Classifier</span></h1>
+        <p class="sub">Upload a picture of a planet, a galaxy or a black hole. A VGG19 + DenseNet201 ensemble (99.1% test accuracy) tells you which of 11 classes it is.</p>
+      </div>
+      <div class="status" id="status" data-state="waking" role="status" aria-live="polite"><i></i><span>Connecting…</span></div>
+    </header>
+
+    <div class="grid">
+      <form class="card" id="form">
+        <span class="label">Image</span>
+        <label class="drop" id="drop" tabindex="0">
+          <input type="file" id="file" accept="image/jpeg,image/png,image/webp">
+          <span class="hint" id="hint">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+            <b>Drop an image here</b>or click to choose one · JPG, PNG or WebP
+          </span>
+        </label>
+
+        <span class="label" style="margin-top:22px">Or try an example</span>
+        <div class="examples" id="examples">
+          <button type="button" class="ex" data-src="examples/saturn.jpg" aria-label="Saturn"><img src="examples/saturn.jpg" alt=""></button>
+          <button type="button" class="ex" data-src="examples/galaxy.jpg" aria-label="Galaxy"><img src="examples/galaxy.jpg" alt=""></button>
+          <button type="button" class="ex" data-src="examples/black_hole.jpg" aria-label="Black hole"><img src="examples/black_hole.jpg" alt=""></button>
+          <button type="button" class="ex" data-src="examples/jupiter.jpg" aria-label="Jupiter"><img src="examples/jupiter.jpg" alt=""></button>
+          <button type="button" class="ex" data-src="examples/mars.jpg" aria-label="Mars"><img src="examples/mars.jpg" alt=""></button>
+          <button type="button" class="ex" data-src="examples/earth.jpg" aria-label="Earth"><img src="examples/earth.jpg" alt=""></button>
+        </div>
+
+        <button class="btn btn-primary" id="go" type="submit" disabled>Classify</button>
+        <div class="msg" id="msg"></div>
+      </form>
+
+      <div class="card result" id="result">
+        <div class="empty" id="empty"><div><b>The prediction will appear here</b>Pick an example or upload your own image.</div></div>
+        <div id="out" hidden>
+          <div class="top">
+            <div class="name" id="topName"></div>
+            <div class="conf"><b id="topConf"></b> confidence</div>
+          </div>
+          <span class="label">Class probabilities</span>
+          <ul class="bars" id="bars"></ul>
+        </div>
+        <button type="button" class="toggle" id="toggle" hidden>Show all 11 classes</button>
+        <p class="meta" id="meta"></p>
+      </div>
+    </div>
+
+    <p class="note">Classes: black hole, earth, galaxy, jupiter, mars, mercury, neptune, pluto, saturn, uranus, venus. The model always picks one of these 11, so a photo of anything else still gets a confident, meaningless label.</p>
+
+    <footer>
+      <span>Built by <a href="https://majd-aguir.vercel.app/">Majd Aguir</a></span>
+      <a href="https://github.com/Majd1029/Astro-Image-Classifier">View code on GitHub ↗</a>
+    </footer>
+  </div>
+
+  <script type="module">
+    import { Client, handle_file } from 'https://cdn.jsdelivr.net/npm/@gradio/client@2.7.1/dist/browser.js';
+
+    const $ = (id) => document.getElementById(id);
+    const statusEl = $('status'), go = $('go'), msg = $('msg'), drop = $('drop');
+    const MAX_BYTES = 10 * 1024 * 1024;
+    let client = null, ready = false, busy = false, current = null, previewUrl = null;
+    let lastConfidences = [], showAll = false;
+
+    function setStatus(state, text) {
+      statusEl.dataset.state = state;
+      statusEl.querySelector('span').textContent = text;
+    }
+    function showMsg(kind, text) { msg.className = 'msg show ' + kind; msg.textContent = text; }
+    function clearMsg() { msg.className = 'msg'; msg.textContent = ''; }
+    function updateButton() { go.disabled = !ready || busy || !current; }
+    function errorText(err) {
+      const text = (err && (err.message || (err.data && err.data.message))) || String(err || '');
+      return text || 'Something went wrong. Please try again.';
+    }
+
+    function setImage(blob, name) {
+      if (!/^image\/(jpeg|png|webp)$/.test(blob.type)) { showMsg('error', 'Use a JPG, PNG or WebP image.'); return; }
+      if (blob.size > MAX_BYTES) { showMsg('error', 'That image is over 10 MB. Try a smaller one.'); return; }
+      clearMsg();
+      current = { blob, name };
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      previewUrl = URL.createObjectURL(blob);
+      drop.querySelector('img')?.remove();
+      const img = new Image(); img.src = previewUrl; img.alt = 'Selected image';
+      drop.appendChild(img);
+      drop.classList.add('has-image');
+      $('hint').hidden = true;
+      updateButton();
+    }
+
+    function render(confidences) {
+      const list = showAll ? confidences : confidences.slice(0, 5);
+      $('bars').innerHTML = '';
+      for (const c of list) {
+        const li = document.createElement('li');
+        li.innerHTML = '<span class="n"></span><span class="track"><span class="fill"></span></span><span class="p"></span>';
+        li.querySelector('.n').textContent = c.label;
+        li.querySelector('.p').textContent = (c.confidence * 100).toFixed(c.confidence >= 0.995 || c.confidence < 0.001 ? 0 : 1) + '%';
+        $('bars').appendChild(li);
+        requestAnimationFrame(() => { li.querySelector('.fill').style.width = Math.max(c.confidence * 100, 0.5) + '%'; });
+      }
+      $('toggle').textContent = showAll ? 'Show top 5' : 'Show all ' + confidences.length + ' classes';
+      $('toggle').hidden = confidences.length <= 5;
+    }
+
+    // Free Spaces sleep after a while without visitors. Client.connect wakes the
+    // Space and reports progress, but gives up after about a minute, so keep
+    // retrying for up to ten minutes.
+    const started = Date.now();
+    async function connect() {
+      try {
+        client = await Client.connect(window.SPACE_ID, {
+          status_callback: (s) => {
+            if (s.status === 'sleeping') {
+              setStatus('waking', 'Waking up the server…');
+              showMsg('info', 'The server sleeps when nobody has used it for a while. Waking it up usually takes 1–3 minutes; this page will update by itself.');
+            } else if (s.status === 'building' || s.status === 'starting') {
+              setStatus('loading', 'Starting up…');
+            } else if (s.status === 'paused' || s.status === 'space_error') {
+              setStatus('error', 'Unavailable');
+              showMsg('error', s.message || 'The demo is unavailable right now.');
+            }
+          }
+        });
+        ready = true;
+        setStatus('ready', 'Ready');
+        if (msg.classList.contains('info')) clearMsg();
+      } catch (err) {
+        ready = false;
+        if (Date.now() - started < 10 * 60 * 1000) {
+          setStatus('waking', 'Waking up the server…');
+          setTimeout(connect, 10000);
+        } else {
+          setStatus('error', 'Offline');
+          showMsg('error', 'The server is not responding. Please try again later.');
+        }
+      }
+      updateButton();
+    }
+
+    $('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!current || !ready || busy) return;
+      busy = true; updateButton(); clearMsg();
+      setStatus('busy', 'Classifying…');
+      $('out').hidden = true; $('toggle').hidden = true; $('meta').textContent = '';
+      $('empty').hidden = false;
+      $('empty').innerHTML = '<div><div class="spinner"></div><b>Classifying…</b>Usually a second or two.</div>';
+      const t0 = Date.now();
+      try {
+        const res = await client.predict('/classify', { image: handle_file(current.blob) });
+        const out = res.data[0];
+        lastConfidences = (out.confidences || []).slice().sort((a, b) => b.confidence - a.confidence);
+        if (!lastConfidences.length) throw new Error('The server returned no prediction.');
+        const top = lastConfidences[0];
+        $('topName').textContent = top.label;
+        $('topConf').textContent = (top.confidence * 100).toFixed(1) + '%';
+        showAll = false;
+        render(lastConfidences);
+        $('empty').hidden = true;
+        $('out').hidden = false;
+        $('meta').textContent = 'Answered in ' + ((Date.now() - t0) / 1000).toFixed(1) + 's';
+      } catch (err) {
+        $('empty').innerHTML = '<div><b>No prediction this time</b>Try again or pick another image.</div>';
+        showMsg('error', errorText(err));
+      } finally {
+        busy = false;
+        if (ready) setStatus('ready', 'Ready');
+        updateButton();
+      }
+    });
+
+    $('file').addEventListener('change', (e) => {
+      const f = e.target.files[0];
+      document.querySelectorAll('.ex').forEach((b) => b.setAttribute('aria-pressed', 'false'));
+      if (f) setImage(f, f.name);
+      e.target.value = '';
+    });
+    drop.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('file').click(); }
+    });
+    ['dragenter', 'dragover'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add('over'); }));
+    ['dragleave', 'drop'].forEach((t) => drop.addEventListener(t, () => drop.classList.remove('over')));
+    drop.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const f = e.dataTransfer.files[0];
+      if (f) { document.querySelectorAll('.ex').forEach((b) => b.setAttribute('aria-pressed', 'false')); setImage(f, f.name); }
+    });
+    document.addEventListener('paste', (e) => {
+      const item = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith('image/'));
+      if (item) setImage(item.getAsFile(), 'pasted.png');
+    });
+
+    document.querySelectorAll('.ex').forEach((b) => {
+      b.addEventListener('click', async () => {
+        try {
+          const r = await fetch(b.dataset.src);
+          const blob = await r.blob();
+          document.querySelectorAll('.ex').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+          setImage(blob, b.dataset.src.split('/').pop());
+          if (ready && !busy) $('form').requestSubmit();
+        } catch (err) {
+          showMsg('error', 'Could not load that example.');
+        }
+      });
+    });
+
+    $('toggle').addEventListener('click', () => { showAll = !showAll; render(lastConfidences); });
+
+    connect();
+  </script>
+</body>
+</html>

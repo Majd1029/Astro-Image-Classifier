@@ -1,7 +1,7 @@
 # -------------------------------
 # Base image
 # -------------------------------
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 # -------------------------------
 # Environment settings
@@ -9,9 +9,9 @@ FROM python:3.10-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Streamlit config (important!)
-ENV STREAMLIT_SERVER_PORT=8501
-ENV STREAMLIT_SERVER_ADDRESS=0.0.0.0
+# Gradio listens on all interfaces inside the container
+ENV GRADIO_SERVER_NAME=0.0.0.0
+ENV GRADIO_SERVER_PORT=7860
 
 # -------------------------------
 # System dependencies
@@ -37,11 +37,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # -------------------------------
-# Expose Streamlit port
+# Expose Gradio port
 # -------------------------------
-EXPOSE 8501
+EXPOSE 7860
 
 # -------------------------------
-# Run Streamlit
+# Run the Gradio app
 # -------------------------------
-CMD ["streamlit", "run", "app.py"]
+CMD ["python", "app.py"]
