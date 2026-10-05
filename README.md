@@ -13,6 +13,8 @@ short_description: VGG19 + DenseNet201 ensemble over 11 astronomical classes
 
 # 🌌 Astro Image Classifier
 
+**[▶ Try the live demo](https://astro-image-classifier-web.vercel.app)** — upload a picture of a planet, galaxy or black hole.
+
 An end-to-end **deep learning project** that classifies astronomical images into
 11 classes (black hole, earth, galaxy, jupiter, mars, mercury, neptune, pluto,
 saturn, uranus, venus) using **transfer learning, attention mechanisms and
