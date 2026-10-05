@@ -25,7 +25,11 @@ Two things the saved graph dictates:
    take RAW 0-255 RGB. Preprocessing before feeding does it twice: measured at
    71.8% correct versus 100% on the same images. See verify_model.py.
 """
+import json
 import os
+import re
+import tempfile
+import zipfile
 
 os.environ.setdefault("CUDA_VISIBLE_DEVICES", "-1")
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
@@ -43,9 +47,7 @@ MODEL_REPO = os.getenv("MODEL_REPO", "MA29/astro-image-classifier")
 MODEL_FILE = os.getenv("MODEL_FILE", "ensemble_model.keras")
 
 
-def load_model():
-    keras.mixed_precision.set_global_policy("float32")  # saved as mixed_float16
-    path = hf_hub_download(repo_id=MODEL_REPO, filename=MODEL_FILE)
+def _load(path):
     custom = {"preprocess_input": preprocess_input}
     try:
         return tf.keras.models.load_model(path, custom_objects=custom, compile=False)
@@ -53,6 +55,61 @@ def load_model():
         return tf.keras.models.load_model(
             path, custom_objects=custom, compile=False, safe_mode=False
         )
+
+
+# Keras error messages that name a config key the installed version doesn't know.
+_UNKNOWN_KEY = [
+    re.compile(r"unexpected keyword argument '(\w+)'"),
+    re.compile(r"Unrecognized keyword arguments? passed to \w+: \{'(\w+)'"),
+]
+
+
+def _drop_key(obj, key):
+    if isinstance(obj, dict):
+        return {k: _drop_key(v, key) for k, v in obj.items() if k != key}
+    if isinstance(obj, list):
+        return [_drop_key(v, key) for v in obj]
+    return obj
+
+
+def load_model():
+    """The model was saved with Keras 3.15, which needs Python 3.11. On an older
+    Keras (e.g. a Python 3.10 Space) loading fails on config options added
+    since, such as `input_axes` on initializers or `quantization_config` on
+    Dense. Those are left at their defaults, so each one the installed Keras
+    rejects is removed from config.json and the load retried."""
+    keras.mixed_precision.set_global_policy("float32")  # saved as mixed_float16
+    path = original = hf_hub_download(repo_id=MODEL_REPO, filename=MODEL_FILE)
+    dropped = []
+    while True:
+        try:
+            model = _load(path)
+            if path != original:
+                os.remove(path)  # weights are in memory now
+            if dropped:
+                print(f"Keras {keras.__version__}: ignored newer config keys {dropped}")
+            return model
+        except (TypeError, ValueError) as e:
+            key = next((m.group(1) for p in _UNKNOWN_KEY for m in [p.search(str(e))] if m), None)
+            if key is None or key in dropped or len(dropped) >= 20:
+                raise
+            dropped.append(key)
+            stripped = _strip_config(path, key)
+            if path != original:
+                os.remove(path)  # the previous stripped copy
+            path = stripped
+
+
+def _strip_config(src, key):
+    fd, dst = tempfile.mkstemp(suffix=".keras")
+    os.close(fd)
+    with zipfile.ZipFile(src) as zin, zipfile.ZipFile(dst, "w") as zout:
+        for item in zin.infolist():
+            data = zin.read(item.filename)
+            if item.filename == "config.json":
+                data = json.dumps(_drop_key(json.loads(data), key)).encode()
+            zout.writestr(item, data)
+    return dst
 
 
 # Loaded once at startup, so the first visitor doesn't wait for the 267 MB download.
