@@ -1,4 +1,4 @@
-"""Astro image classifier — Gradio app for a free Hugging Face Space (CPU).
+"""Astro image classifier — Gradio app for a free Hugging Face Space (ZeroGPU).
 
 The Vercel page in web/ calls it through @gradio/client:
 
@@ -25,6 +25,11 @@ Two things the saved graph dictates:
    take RAW 0-255 RGB. Preprocessing before feeding does it twice: measured at
    71.8% correct versus 100% on the same images. See verify_model.py.
 """
+try:
+    import spaces  # ZeroGPU: must be imported before gradio
+except ImportError:  # running locally or in Docker
+    spaces = None
+
 import json
 import os
 import re
@@ -114,6 +119,17 @@ def _strip_config(src, key):
 
 # Loaded once at startup, so the first visitor doesn't wait for the 267 MB download.
 model = load_model()
+
+
+# Free Gradio Spaces only come with ZeroGPU hardware, which refuses to start
+# unless at least one @spaces.GPU function exists. TensorFlow can't use the
+# ZeroGPU device anyway, and the ensemble answers in about a second on CPU, so
+# classify() is not decorated: it runs on CPU and spends none of the GPU quota.
+# This registered-but-unused function only satisfies the startup check.
+if spaces is not None:
+    @spaces.GPU(duration=5)
+    def _zerogpu_startup_check():
+        return None
 
 
 def classify(image):
