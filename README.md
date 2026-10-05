@@ -73,7 +73,7 @@ Hub as [`MA29/astro-image-classifier`](https://huggingface.co/MA29/astro-image-c
 
 ```
 Vercel (web/index.html)  ──@gradio/client──▶  Hugging Face Space (app.py)
-   static page, free                            TensorFlow on free CPU
+   static page, free                            TensorFlow on a free ZeroGPU Space
 ```
 
 - `app.py` is a Gradio app. It downloads the weights from the Hub at startup and
@@ -82,8 +82,10 @@ Vercel (web/index.html)  ──@gradio/client──▶  Hugging Face Space (app.
   [`@gradio/client`](https://www.npmjs.com/package/@gradio/client) and draws the result.
 
 Vercel alone can't run the model: TensorFlow plus the 267 MB weights are far
-over its serverless size limit. The free Space runs it on CPU in about a second
-per image. Free Spaces sleep after a period without visitors; the page then
+over its serverless size limit. Free Gradio Spaces only come with ZeroGPU
+hardware, which requires one `@spaces.GPU` function to exist; the classifier
+itself runs on the Space's CPU in about a second per image, so it uses none of
+the daily GPU quota. Free Spaces sleep after a period without visitors; the page then
 shows "Waking up the server…" and waits while it restarts.
 
 ---
@@ -93,7 +95,7 @@ shows "Waking up the server…" and waits while it restarts.
 ### 1. Hugging Face Space
 
 1. On huggingface.co, create a **new Space** → SDK **Gradio** → *Blank* →
-   hardware **CPU basic (free)**, visibility **Public**. Name it
+   hardware **ZeroGPU** (the free option), visibility **Public**. Name it
    `astro-image-classifier`.
 2. Create an access token with **write** permission (Settings → Access Tokens).
 3. In this GitHub repo, go to Settings → Secrets and variables → Actions and add:
