@@ -164,8 +164,7 @@ def main():
     print("=" * 58)
 
     if raw_ok > dbl_ok:
-        print("\n=> RAW WINS. app.py is correct as written; "
-              "utils/preprocessing.py double-preprocesses.")
+        print("\n=> RAW WINS. Feed raw 0-255 RGB, as app.py does.")
     elif dbl_ok > raw_ok:
         print("\n=> PRE-PROCESSED WINS. The graph does not preprocess internally — "
               "app.py must apply vgg_preprocess / densenet_preprocess before feeding.")
